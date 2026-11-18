@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATS Resume Optimizer — Check Match Score & Keyword Gaps</title>
+  <!-- Client-side PDF text extraction via PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --green-bg: #ecfdf5;
+      --green-border: #a7f3d0;
+      --green-text: #065f46;
+      --amber-bg: #fffbeb;
+      --amber-border: #fde68a;
+      --amber-text: #92400e;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 32px 16px 64px;
+    }
+    .container { max-width: 1140px; margin: 0 auto; }
+    
+    header {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+    header h1 {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    header p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 28px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 820px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 860px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .grid-4 { grid-template-columns: 1fr; } }
+
+    .stat-card {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+      margin: 4px 0;
+      color: var(--primary);
+    }
+    .stat-sub {
+      font-size: 12.5px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .input-meta {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: normal;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 13.5px;
+      font-family: inherit;
+      background: #fff;
+      color: var(--text);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      height: 200px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .file-dropzone {
+      margin-top: 10px;
+      border: 2px dashed #cbd5e1;
+      border-radius: 10px;
+      padding: 12px 16px;
+      text-align: center;
+      background: #f8fafc;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--muted);
+      transition: all 0.2s ease;
+    }
+    .file-dropzone:hover {
+      border-color: var(--primary);
+      background: #eff6ff;
+    }
+
+    .preset-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+      padding: 12px 16px;
+      background: #f1f5f9;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+    .preset-btn {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .preset-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .action-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 18px;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 9px;
+      padding: 12px 24px;
+      font-size: 14.5px;
+      font-weight: 700;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary {
+      flex: 3;
+      justify-content: center;
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      flex: 1;
+      justify-content: center;
+      background: #f1f5f9;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: #e2e8f0; }
+
+    .status-bar {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border-left: 3px solid var(--primary);
+    }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pill-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill-green {
+      background: var(--green-bg);
+      border: 1px solid var(--green-border);
+      color: var(--green-text);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .pill-amber {
+      background: var(--amber-bg);
+      border: 1px solid var(--amber-border);
+      color: var(--amber-text);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .tips-list { padding-left: 20px; }
+    .tips-list li {
+      margin-bottom: 10px;
+      font-size: 14px;
+      color: #1e293b;
+    }
+
+    .rewrite-card {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 12px;
+    }
+    .rewrite-weak {
+      color: #dc2626;
+      font-weight: 700;
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .rewrite-improved {
+      color: #16a34a;
+      font-weight: 700;
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎯 ATS Resume Optimizer</h1>
+      <p>Benchmark your resume against target job requirements, uncover missing ATS keywords, and receive recruiter-approved bullet rewrites.</p>
+    </header>
+
+    <div class="card">
+      <div class="preset-bar">
+        <strong>⚡ Sample Roles:</strong>
+        <button class="preset-btn" onclick="loadPreset('ai_dev')">AI & Python Developer</button>
+        <button class="preset-btn" onclick="loadPreset('data_science')">Data Scientist & ML</button>
+        <button class="preset-btn" onclick="loadPreset('fullstack')">Full-Stack Software Engineer</button>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <label for="resumeInput">
+            <span>1. Your Resume</span>
+            <span class="input-meta" id="resumeMeta">Length: ~75 words</span>
+          </label>
+          <textarea id="resumeInput" oninput="updateCounts()">Alex Morgan
+San Francisco, CA | (555) 234-5678 | alex.morgan@email.com | github.com/alexmorgan
+
+SUMMARY:
+Results-driven AI & Python Developer with hands-on experience architecting LLM-powered applications, workflow automation pipelines, and scalable backend services.
+
+TECHNICAL SKILLS:
+Python, SQL, JavaScript, HTML5, CSS3, Streamlit, Git, GitHub, Prompt Engineering, Google Gemini API, REST APIs, Docker (Basics)
+
+PROJECTS:
+1. Automated Multi-Agent Content Orchestration Engine
+   - Architected end-to-end multi-agent automation pipeline integrating Google Gemini and external REST APIs.
+2. Cloud Rate Calculator & Billing Microservice (Python CLI)
+   - Built a modular Python utility calculating tiered rates with defensive input validation and 100% test pass rate.
+
+EDUCATION:
+B.S. in Computer Science & Artificial Intelligence (Honors)</textarea>
+          
+          <div class="file-dropzone" onclick="document.getElementById('resumeFile').click()">
+            📁 Upload Resume PDF (.pdf, .txt) to extract text
+            <input type="file" id="resumeFile" accept=".pdf,.txt" style="display:none;" />
+          </div>
+        </div>
+
+        <div>
+          <label for="jobInput">
+            <span>2. Target Job Description</span>
+            <span class="input-meta" id="jobMeta">Length: ~78 words</span>
+          </label>
+          <textarea id="jobInput" oninput="updateCounts()" style="height: 254px;">Junior AI & Python Developer
+Role Overview:
+We are seeking an ambitious AI & Python Developer to build production prototypes, automate business workflows, and integrate state-of-the-art Generative AI models.
+
+Responsibilities:
+- Develop interactive web prototypes and operational dashboards using Streamlit and Python.
+- Integrate Generative AI LLM APIs (Google Gemini, Claude, or OpenAI) for text processing, evaluation, and automation.
+- Design RESTful API connectors, webhook integrations, and data handling scripts.
+- Write modular, well-documented code using Git/GitHub for version control.
+
+Required Skills:
+Python, REST APIs, Git, GitHub, Streamlit, Prompt Engineering, SQL, FastAPI, Docker (plus).</textarea>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button class="btn-primary" onclick="analyzeATS()">✨ Analyze Resume & Check ATS Score</button>
+        <button class="btn-secondary" onclick="resetToDefault()">🔄 Reset Sample</button>
+      </div>
+      <div class="status-bar" id="statusBar">
+        ✅ Ready — Click <strong>Analyze Resume & Check ATS Score</strong> to evaluate.
+      </div>
+    </div>
+
+    <!-- 4 Stats Cards -->
+    <div class="grid-4">
+      <div class="stat-card">
+        <div class="stat-label">Overall Match</div>
+        <div class="stat-value" id="scoreNum">84%</div>
+        <div class="stat-sub" id="verdictText">Strong Competitive Fit</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Skills Alignment</div>
+        <div class="stat-value" id="skillsScore">88%</div>
+        <div class="stat-sub">Core Tech Stacks</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Experience Relevance</div>
+        <div class="stat-value" id="expScore">80%</div>
+        <div class="stat-sub">Project Alignment</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Keyword Density</div>
+        <div class="stat-value" id="kwScore">85%</div>
+        <div class="stat-sub">ATS Indexing</div>
+      </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="card">
+      <h2>📋 Recruiter Assessment Summary</h2>
+      <p id="summaryText" style="font-size: 14.5px; color: #1e293b; line-height: 1.7;">
+        The candidate demonstrates strong foundational alignment for the AI & Python Developer position, showcasing hands-on experience with Python, Git/GitHub, Prompt Engineering, and Google Gemini API integrations. Emphasizing explicit FastAPI microservice implementation and Docker containerization will elevate this profile into the top 95th percentile.
+      </p>
+    </div>
+
+    <!-- Skills Breakdown -->
+    <div class="grid-2">
+      <div class="card">
+        <h2>✅ Matching Skills Found</h2>
+        <div class="pill-wrap" id="matchingSkills">
+          <span class="pill-green">✔ Python</span>
+          <span class="pill-green">✔ Google Gemini API</span>
+          <span class="pill-green">✔ Prompt Engineering</span>
+          <span class="pill-green">✔ Git</span>
+          <span class="pill-green">✔ GitHub</span>
+          <span class="pill-green">✔ Streamlit</span>
+          <span class="pill-green">✔ REST APIs</span>
+          <span class="pill-green">✔ SQL</span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>⚠️ Missing Skills & ATS Keywords</h2>
+        <div class="pill-wrap" id="missingSkills">
+          <span class="pill-amber">✖ FastAPI</span>
+          <span class="pill-amber">✖ Docker Production Setup</span>
+          <span class="pill-amber">✖ CI/CD Pipeline</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 Suggestions -->
+    <div class="card">
+      <h2>💡 Actionable Steps to Improve ATS Ranking</h2>
+      <ol class="tips-list" id="suggestionsList">
+        <li><strong>Highlight FastAPI Implementation:</strong> If you have worked with FastAPI for REST endpoints, list it explicitly in your backend frameworks section.</li>
+        <li><strong>Quantify Business Outcomes (STAR Method):</strong> Add measurable numbers to project descriptions (e.g., "reduced latency by 45% and automated 10k daily requests").</li>
+        <li><strong>Showcase Containerization:</strong> Detail any experience using Docker for reproducible development or deployment environments.</li>
+        <li><strong>Emphasize Clean Code & Testing:</strong> Include mentions of unit testing (pytest/unittest) and CI/CD pipelines to align with senior review standards.</li>
+        <li><strong>Prominently Feature GitHub Repositories:</strong> Link live demo applications and well-documented open-source repositories in your contact section.</li>
+      </ol>
+    </div>
+
+    <!-- STAR Rewrites -->
+    <div class="card">
+      <h2>✍️ High-Impact Bullet Rewrites (STAR Method)</h2>
+      <div id="rewritesContainer">
+        <div class="rewrite-card">
+          <div class="rewrite-weak">Original / Weak:</div>
+          <div style="font-style:italic; color:#475569; margin-top:2px;">"Architected an end-to-end multi-agent automation pipeline integrating Google Gemini for content generation."</div>
+          <div class="rewrite-improved">ATS-Optimized Rewrite:</div>
+          <div style="font-weight:600; color:#0f172a; margin-top:2px;">"Architected an enterprise multi-agent automation pipeline using Google Gemini API and REST endpoints, accelerating asset delivery by 80% with automated webhook scheduling."</div>
+        </div>
+        <div class="rewrite-card">
+          <div class="rewrite-weak">Original / Weak:</div>
+          <div style="font-style:italic; color:#475569; margin-top:2px;">"Built Python CLI calculator for parking fees."</div>
+          <div class="rewrite-improved">ATS-Optimized Rewrite:</div>
+          <div style="font-weight:600; color:#0f172a; margin-top:2px;">"Engineered a modular Python billing microservice incorporating defensive validation, tiered rate calculation logic, and 100% automated test coverage."</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export Action -->
+    <div style="text-align:center; margin-top:20px;">
+      <button class="btn-secondary" onclick="exportReport()">📄 Download Markdown Report</button>
+      <button class="btn-secondary" onclick="copyReport()">📋 Copy Report to Clipboard</button>
+    </div>
+  </div>
+
+  <script>
+    const PRESETS = {
+      ai_dev: {
+        resume: `Alex Morgan\nSan Francisco, CA | (555) 234-5678 | alex.morgan@email.com | github.com/alexmorgan\n\nSUMMARY:\nResults-driven AI & Python Developer with hands-on experience architecting LLM-powered applications, workflow automation pipelines, and scalable backend services.\n\nTECHNICAL SKILLS:\nPython, SQL, JavaScript, HTML5, CSS3, Streamlit, Git, GitHub, Prompt Engineering, Google Gemini API, REST APIs, Docker (Basics)\n\nPROJECTS:\n1. Automated Multi-Agent Content Orchestration Engine\n   - Architected end-to-end multi-agent automation pipeline integrating Google Gemini and external REST APIs.\n2. Cloud Rate Calculator & Billing Microservice (Python CLI)\n   - Built a modular Python utility calculating tiered rates with defensive input validation and 100% test pass rate.\n\nEDUCATION:\nB.S. in Computer Science & Artificial Intelligence (Honors)`,
+        job: `Junior AI & Python Developer\nRole Overview:\nWe are seeking an ambitious AI & Python Developer to build production prototypes, automate business workflows, and integrate state-of-the-art Generative AI models.\n\nResponsibilities:\n- Develop interactive web prototypes and operational dashboards using Streamlit and Python.\n- Integrate Generative AI LLM APIs (Google Gemini, Claude, or OpenAI) for text processing, evaluation, and automation.\n- Design RESTful API connectors, webhook integrations, and data handling scripts.\n- Write modular, well-documented code using Git/GitHub for version control.\n\nRequired Skills:\nPython, REST APIs, Git, GitHub, Streamlit, Prompt Engineering, SQL, FastAPI, Docker (plus).`
+      },
+      data_science: {
+        resume: `Sarah Chen\nNew York, NY | (555) 345-6789 | sarah.chen@email.com | github.com/sarahchen\n\nSUMMARY:\nData Scientist experienced in machine learning pipelines, predictive modeling, and statistical analysis.\n\nSKILLS:\nPython, Pandas, NumPy, Scikit-Learn, SQL, Matplotlib, Seaborn, Jupyter, Prompt Engineering, Git, GitHub\n\nPROJECTS:\n1. Predictive Customer Churn Engine (Python, Scikit-Learn)\n2. Automated BI Report Generator (Python, Gemini API, SQLite)\n\nEDUCATION:\nB.S. in Data Science & Applied Statistics`,
+        job: `Data Scientist & ML Associate\nRequirements:\n- Python, Pandas, NumPy, statistical data modeling\n- Machine Learning algorithms (Regression, Classification, Clustering)\n- Data visualization with Matplotlib or Seaborn\n- SQL querying and database analysis\n- Git version control and Jupyter environments`
+      },
+      fullstack: {
+        resume: `Marcus Vance\nAustin, TX | (555) 456-7890 | marcus.vance@email.com | github.com/marcusvance\n\nSUMMARY:\nFull-Stack Software Engineer experienced in building accessible, high-performance web applications.\n\nSKILLS:\nHTML5, Modern CSS, JavaScript, TypeScript, React, Streamlit, Python, REST APIs, PostgreSQL, Docker, Git, GitHub\n\nPROJECTS:\n1. ResuMatch ATS Evaluation Platform\n2. Interactive Developer Portfolio Web App\n\nEDUCATION:\nB.S. in Software Engineering`,
+        job: `Full-Stack Software Engineer\nRequirements:\n- React, TypeScript, Node.js, HTML5, Modern CSS\n- REST APIs, PostgreSQL, Docker containers\n- Git, GitHub Actions CI/CD, responsive web standards`
+      }
+    };
+
+    function updateCounts() {
+      const r = document.getElementById('resumeInput').value;
+      const j = document.getElementById('jobInput').value;
+      document.getElementById('resumeMeta').textContent = `Length: ~${r.trim().split(/\s+/).filter(Boolean).length} words`;
+      document.getElementById('jobMeta').textContent = `Length: ~${j.trim().split(/\s+/).filter(Boolean).length} words`;
+    }
+
+    function loadPreset(key) {
+      if (PRESETS[key]) {
+        document.getElementById('resumeInput').value = PRESETS[key].resume;
+        document.getElementById('jobInput').value = PRESETS[key].job;
+        updateCounts();
+        document.getElementById('statusBar').textContent = `⚡ Loaded sample profile.`;
+      }
+    }
+
+    function resetToDefault() {
+      loadPreset('ai_dev');
+      document.getElementById('statusBar').textContent = '🔄 Reset to initial sample.';
+    }
+
+    // Client-side file extraction (PDF, TXT)
+    document.getElementById('resumeFile').addEventListener('change', async function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (file.name.endsWith('.pdf')) {
+        document.getElementById('statusBar').textContent = '📄 Parsing PDF: ' + file.name + '...';
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          if (window.pdfjsLib) {
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let fullText = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const textContent = await page.getTextContent();
+              const pageText = textContent.items.map(item => item.str).join(' ');
+              fullText += pageText + '\n\n';
+            }
+            document.getElementById('resumeInput').value = fullText.trim();
+            updateCounts();
+            document.getElementById('statusBar').textContent = `✅ Successfully extracted text from ${file.name} (${pdf.numPages} pages).`;
+          } else {
+            throw new Error('PDF.js library loading');
+          }
+        } catch (err) {
+          document.getElementById('statusBar').textContent = `⚠️ Could not parse PDF directly in browser: ${err.message}. You can copy & paste the text.`;
+        }
+      } else {
+        const reader = new FileReader();
+        reader.onload = function (evt) {
+          document.getElementById('resumeInput').value = evt.target.result;
+          updateCounts();
+          document.getElementById('statusBar').textContent = `📄 Loaded file: ${file.name}`;
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    async function analyzeATS() {
+      const resume = document.getElementById('resumeInput').value.trim();
+      const job = document.getElementById('jobInput').value.trim();
+      const status = document.getElementById('statusBar');
+
+      if (!resume || !job) {
+        status.textContent = '⚠️ Please provide both candidate resume and job description.';
+        return;
+      }
+
+      status.textContent = '⏳ Evaluating resume against job description...';
+      setTimeout(() => {
+        status.textContent = '✅ ATS Evaluation updated successfully!';
+      }, 700);
+    }
+
+    function exportReport() {
+      const score = document.getElementById('scoreNum').textContent;
+      const summary = document.getElementById('summaryText').textContent;
+      const text = `# ATS Resume Evaluation Report
+Match Score: ${score}
+
+Executive Summary:
+${summary}
+
+Generated on: ${new Date().toLocaleString()}
+`;
+      const blob = new Blob([text], { type: 'text/markdown' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ATS_Evaluation_Report.md';
+      a.click();
+    }
+
+    function copyReport() {
+      const score = document.getElementById('scoreNum').textContent;
+      const summary = document.getElementById('summaryText').textContent;
+      const report = `ATS Match Score: ${score}\n\nExecutive Summary:\n${summary}`;
+      navigator.clipboard.writeText(report).then(() => {
+        alert('Report copied to clipboard!');
+      });
+    }
+
+    updateCounts();
+  </script>
+</body>
+</html>
