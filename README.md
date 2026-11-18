@@ -89,11 +89,38 @@ Edit `.env`:
 GEMINI_API_KEY="your_gemini_api_key_here"
 ```
 
-### 3. Launch the Application
+### 3. Launch the Application Locally
 ```bash
 streamlit run app.py
 ```
 Open your browser at `http://localhost:8501`.
+
+---
+
+## ☁️ Deployment Guide
+
+### Option 1: Streamlit Community Cloud (Recommended & Free)
+Streamlit Community Cloud provides 1-click native hosting with full WebSocket support:
+1. Navigate to **[share.streamlit.io](https://share.streamlit.io/)** and sign in with GitHub.
+2. Click **New app** and select:
+   * **Repository:** `restonuct/resumatch-ai`
+   * **Branch:** `main`
+   * **Main file path:** `app.py`
+3. Under **Advanced settings**, add your secret:
+   ```toml
+   GEMINI_API_KEY = "your_gemini_api_key_here"
+   ```
+4. Click **Deploy!**
+
+### Option 2: Vercel (Edge Web Deployment)
+The repository includes automated `vercel.json` routing:
+1. Import `restonuct/resumatch-ai` into [Vercel](https://vercel.com/).
+2. Vercel automatically deploys the responsive web interface to its global edge network.
+
+### Option 3: Render / Railway / Hugging Face Spaces
+* **Build Command:** `pip install -r requirements.txt`
+* **Start Command:** `streamlit run app.py --server.port $PORT --server.address 0.0.0.0`
+
 
 ---
 

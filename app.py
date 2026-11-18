@@ -563,3 +563,16 @@ Overall Match Score: {score}/100 ({fit_verdict})
                     mime="application/json",
                     width="stretch",
                 )
+
+
+# ---------------- SERVERLESS / ASGI COMPATIBILITY ---------------- #
+# Top-level exports for ASGI/WSGI serverless runtimes (Vercel, Uvicorn, Starlette)
+try:
+    app = st.App("app.py")
+    application = app
+    handler = app
+except Exception:
+    app = None
+    application = None
+    handler = None
+
